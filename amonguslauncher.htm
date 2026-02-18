@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Among Us</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+#loader {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: url("https://images5.alphacoders.com/110/1104367.jpg") center/cover no-repeat;
+  color: white;
+  text-shadow: 0 0 10px black;
+}
+
+#progressText {
+  font-size: 22px;
+  margin-top: 20px;
+  background: rgba(0,0,0,0.6);
+  padding: 10px 20px;
+  border-radius: 10px;
+}
+
+#progressBarContainer {
+  width: 300px;
+  height: 12px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 15px;
+}
+
+#progressBar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, blue, cyan);
+  transition: width 0.15s ease;
+}
+
+iframe {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: none;
+}
+</style>
+</head>
+
+<body>
+
+<div id="loader">
+  <h1>Loading...</h1>
+  <div id="progressText">0 MB / 0 MB</div>
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
+  </div>
+</div>
+
+<iframe id="gameFrame"></iframe>
+
+<script>
+const fileUrl = "https://raw.githubusercontent.com/ten8mystery/Vertex-Gold-Assets/refs/heads/main/amongus.html";
+
+const loader = document.getElementById("loader");
+const iframe = document.getElementById("gameFrame");
+const progressText = document.getElementById("progressText");
+const progressBar = document.getElementById("progressBar");
+
+async function loadRawIntoIframe() {
+  const response = await fetch(fileUrl);
+  
+  if (!response.ok) {
+    progressText.textContent = "Failed to load file.";
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const contentLength = response.headers.get("Content-Length");
+  const total = contentLength ? parseInt(contentLength) : 0;
+
+  let received = 0;
+  let chunks = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    chunks.push(value);
+    received += value.length;
+
+    let receivedMB = (received / (1024 * 1024)).toFixed(2);
+    let totalMB = total ? (total / (1024 * 1024)).toFixed(2) : "?";
+
+    progressText.textContent = `${receivedMB} MB / ${totalMB} MB`;
+
+    if (total) {
+      let percent = (received / total) * 100;
+      progressBar.style.width = percent + "%";
+    }
+  }
+
+  const blob = new Blob(chunks, { type: "text/html" });
+  const htmlText = await blob.text();
+
+  iframe.srcdoc = htmlText;
+  iframe.style.display = "block";
+  loader.style.display = "none";
+}
+
+loadRawIntoIframe();
+</script>
+
+</body>
+</html>
