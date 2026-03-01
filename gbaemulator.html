@@ -1,113 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>GBA One-File Player</title>
+    <title>GBA Web Emulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-        body { background: #1a1a1a; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .emulator-card { background: #333; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px #000; text-align: center; }
-        canvas { background: #000; width: 480px; height: 320px; image-rendering: pixelated; border: 4px solid #444; border-radius: 5px; }
-        .controls { margin-top: 15px; font-size: 13px; color: #aaa; }
-        kbd { background: #555; padding: 2px 5px; border-radius: 3px; color: white; }
-        #status { margin-bottom: 10px; color: #4CAF50; font-weight: bold; }
-        button { background: #4CAF50; border: none; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; }
-        button:hover { background: #45a049; }
+        body { background: #111; color: #eee; font-family: sans-serif; text-align: center; }
+        #emulator { width: 640px; height: 480px; max-width: 90vw; margin: 20px auto; border: 2px solid #444; }
+        .btn { background: #3a7bd5; color: white; padding: 12px 24px; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; }
+        #status { margin-top: 10px; color: #888; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
-<div class="emulator-card">
-    <div id="status">1. Select ROM → 2. Click Start</div>
-    <canvas id="screen" width="240" height="160"></canvas>
+    <h2>GBA Single-File Player</h2>
     
-    <div class="ui">
-        <input type="file" id="loader" accept=".gba">
-        <button id="start-btn" style="display:none;">Click to Start Audio & Game</button>
+    <div id="emulator">
+        <div style="padding-top: 150px;">
+            <input type="file" id="file" accept=".gba" style="display:none">
+            <button class="btn" onclick="document.getElementById('file').click()">📂 Load GBA ROM</button>
+            <p id="status">Waiting for file...</p>
+        </div>
     </div>
 
-    <div class="controls">
-        <kbd>Arrows</kbd> Move | <kbd>Z</kbd> A | <kbd>X</kbd> B | <kbd>A</kbd> L | <kbd>S</kbd> R<br>
-        <kbd>Enter</kbd> Start | <kbd>\</kbd> Select
-    </div>
-</div>
+    <script>
+        document.getElementById('file').onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-<script src="https://cdn.jsdelivr.net/npm/gbajs@1.1.2/js/util.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gbajs@1.1.2/js/gba.min.js"></script>
+            document.getElementById('status').innerText = "Loading Engine...";
 
-<script>
-    const canvas = document.getElementById('screen');
-    const status = document.getElementById('status');
-    const loader = document.getElementById('loader');
-    const startBtn = document.getElementById('start-btn');
+            // Configuration for EmulatorJS
+            window.EJS_player = "#emulator";
+            window.EJS_core = "gba"; 
+            window.EJS_gameUrl = URL.createObjectURL(file); // Better than DataURL
+            window.EJS_pathtodata = "https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@latest/data/";
 
-    // Initialize the engine
-    const gba = new GameBoyAdvance();
-    gba.setCanvas(canvas);
-    gba.logLevel = gba.LOG_ERROR;
-
-    let romBuffer = null;
-
-    loader.onchange = function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            romBuffer = event.target.result;
-            status.textContent = "ROM Loaded. Ready!";
-            startBtn.style.display = "inline-block";
+            // Load the actual loader script
+            const script = document.createElement("script");
+            script.src = "https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@latest/data/loader.js";
+            script.onload = () => {
+                document.getElementById('status').innerText = "Engine Loaded!";
+            };
+            document.head.appendChild(script);
         };
-        reader.readAsArrayBuffer(file);
-    };
-
-    startBtn.onclick = function() {
-        if (!romBuffer) return;
-        
-        // Load and Run
-        gba.loadRomFromFile(new Blob([romBuffer]), (success) => {
-            if (success) {
-                gba.runAnimation();
-                status.textContent = "Running!";
-                startBtn.style.display = "none";
-            } else {
-                status.textContent = "Error: Invalid ROM";
-            }
-        });
-    };
-
-    // Keyboard Mapping
-    window.onkeydown = (e) => {
-        const kp = gba.keypad;
-        switch(e.key.toLowerCase()) {
-            case "arrowup": kp.keydown(kp.UP); break;
-            case "arrowdown": kp.keydown(kp.DOWN); break;
-            case "arrowleft": kp.keydown(kp.LEFT); break;
-            case "arrowright": kp.keydown(kp.RIGHT); break;
-            case "z": kp.keydown(kp.A); break;
-            case "x": kp.keydown(kp.B); break;
-            case "a": kp.keydown(kp.L); break;
-            case "s": kp.keydown(kp.R); break;
-            case "enter": kp.keydown(kp.START); break;
-            case "\\": kp.keydown(kp.SELECT); break;
-        }
-    };
-
-    window.onkeyup = (e) => {
-        const kp = gba.keypad;
-        switch(e.key.toLowerCase()) {
-            case "arrowup": kp.keyup(kp.UP); break;
-            case "arrowdown": kp.keyup(kp.DOWN); break;
-            case "arrowleft": kp.keyup(kp.LEFT); break;
-            case "arrowright": kp.keyup(kp.RIGHT); break;
-            case "z": kp.keyup(kp.A); break;
-            case "x": kp.keyup(kp.B); break;
-            case "a": kp.keyup(kp.L); break;
-            case "s": kp.keyup(kp.R); break;
-            case "enter": kp.keyup(kp.START); break;
-            case "\\": kp.keyup(kp.SELECT); break;
-        }
-    };
-</script>
-
+    </script>
 </body>
 </html>
