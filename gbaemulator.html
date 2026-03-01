@@ -2,69 +2,112 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>GBA WASM Player</title>
+    <title>GBA One-File Player</title>
     <style>
-        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        #screen { background: #000; width: 480px; height: 320px; border: 8px solid #333; border-radius: 10px; image-rendering: pixelated; }
-        .controls { margin-top: 20px; text-align: center; background: #222; padding: 15px; border-radius: 10px; }
-        kbd { background: #444; padding: 3px 8px; border-radius: 4px; font-family: monospace; border-bottom: 2px solid #000; }
-        #status { margin-bottom: 10px; color: #00ff00; }
-        input { margin: 15px; }
+        body { background: #1a1a1a; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .emulator-card { background: #333; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px #000; text-align: center; }
+        canvas { background: #000; width: 480px; height: 320px; image-rendering: pixelated; border: 4px solid #444; border-radius: 5px; }
+        .controls { margin-top: 15px; font-size: 13px; color: #aaa; }
+        kbd { background: #555; padding: 2px 5px; border-radius: 3px; color: white; }
+        #status { margin-bottom: 10px; color: #4CAF50; font-weight: bold; }
+        button { background: #4CAF50; border: none; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; }
+        button:hover { background: #45a049; }
     </style>
 </head>
 <body>
 
-    <div id="status">Ready to Play</div>
-    <canvas id="screen"></canvas>
+<div class="emulator-card">
+    <div id="status">1. Select ROM → 2. Click Start</div>
+    <canvas id="screen" width="240" height="160"></canvas>
     
-    <input type="file" id="upload" accept=".gba">
-
-    <div class="controls">
-        <kbd>Arrows</kbd> Move | <kbd>X</kbd> A | <kbd>Z</kbd> B | <kbd>A</kbd> L | <kbd>S</kbd> R<br>
-        <kbd>Enter</kbd> Start | <kbd>Shift</kbd> Select
+    <div class="ui">
+        <input type="file" id="loader" accept=".gba">
+        <button id="start-btn" style="display:none;">Click to Start Audio & Game</button>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/Cartridge.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/CPU.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/Graphics.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/Memory.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/Sound.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/Timer.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/Emulator.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/taisel/IodineGBA@master/IodineGBA/core/Joypad.js"></script>
+    <div class="controls">
+        <kbd>Arrows</kbd> Move | <kbd>Z</kbd> A | <kbd>X</kbd> B | <kbd>A</kbd> L | <kbd>S</kbd> R<br>
+        <kbd>Enter</kbd> Start | <kbd>\</kbd> Select
+    </div>
+</div>
 
-    <script>
-        // Check if scripts loaded
-        if (typeof IodineGBA === 'undefined') {
-            document.getElementById('status').innerText = "Error: Core Library Blocked. Try running from a web server.";
-            document.getElementById('status').style.color = "red";
-        }
+<script src="https://cdn.jsdelivr.net/npm/gbajs@1.1.2/js/util.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gbajs@1.1.2/js/gba.min.js"></script>
 
-        const canvas = document.getElementById('screen');
-        const gba = new IodineGBA();
-        gba.attachCanvas(canvas);
+<script>
+    const canvas = document.getElementById('screen');
+    const status = document.getElementById('status');
+    const loader = document.getElementById('loader');
+    const startBtn = document.getElementById('start-btn');
 
-        document.getElementById('upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = function() {
-                const romData = new Uint8Array(this.result);
-                gba.loadROM(romData);
-                gba.play();
-                document.getElementById('status').innerText = "Running: " + file.name;
-            };
-            reader.readAsArrayBuffer(file);
-        });
+    // Initialize the engine
+    const gba = new GameBoyAdvance();
+    gba.setCanvas(canvas);
+    gba.logLevel = gba.LOG_ERROR;
 
-        // Mapping Keys
-        const keys = {
-            38: 0, 40: 1, 37: 2, 39: 3, // Up Down Left Right
-            88: 4, 90: 5, 83: 6, 65: 7, // X(A) Z(B) S(R) A(L)
-            13: 8, 16: 9                // Enter(Start) Shift(Select)
+    let romBuffer = null;
+
+    loader.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            romBuffer = event.target.result;
+            status.textContent = "ROM Loaded. Ready!";
+            startBtn.style.display = "inline-block";
         };
+        reader.readAsArrayBuffer(file);
+    };
 
-        window.onkeydown = (e) => { if (keys[e.keyCode] !== undefined) gba.keyDown(keys[e.keyCode]); };
-        window.onkeyup = (e) => { if (keys[e.keyCode] !== undefined) gba.keyUp(keys[e.keyCode]); };
-    </script>
+    startBtn.onclick = function() {
+        if (!romBuffer) return;
+        
+        // Load and Run
+        gba.loadRomFromFile(new Blob([romBuffer]), (success) => {
+            if (success) {
+                gba.runAnimation();
+                status.textContent = "Running!";
+                startBtn.style.display = "none";
+            } else {
+                status.textContent = "Error: Invalid ROM";
+            }
+        });
+    };
+
+    // Keyboard Mapping
+    window.onkeydown = (e) => {
+        const kp = gba.keypad;
+        switch(e.key.toLowerCase()) {
+            case "arrowup": kp.keydown(kp.UP); break;
+            case "arrowdown": kp.keydown(kp.DOWN); break;
+            case "arrowleft": kp.keydown(kp.LEFT); break;
+            case "arrowright": kp.keydown(kp.RIGHT); break;
+            case "z": kp.keydown(kp.A); break;
+            case "x": kp.keydown(kp.B); break;
+            case "a": kp.keydown(kp.L); break;
+            case "s": kp.keydown(kp.R); break;
+            case "enter": kp.keydown(kp.START); break;
+            case "\\": kp.keydown(kp.SELECT); break;
+        }
+    };
+
+    window.onkeyup = (e) => {
+        const kp = gba.keypad;
+        switch(e.key.toLowerCase()) {
+            case "arrowup": kp.keyup(kp.UP); break;
+            case "arrowdown": kp.keyup(kp.DOWN); break;
+            case "arrowleft": kp.keyup(kp.LEFT); break;
+            case "arrowright": kp.keyup(kp.RIGHT); break;
+            case "z": kp.keyup(kp.A); break;
+            case "x": kp.keyup(kp.B); break;
+            case "a": kp.keyup(kp.L); break;
+            case "s": kp.keyup(kp.R); break;
+            case "enter": kp.keyup(kp.START); break;
+            case "\\": kp.keyup(kp.SELECT); break;
+        }
+    };
+</script>
+
 </body>
 </html>
