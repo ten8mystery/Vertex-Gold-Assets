@@ -1,47 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>GBA Web Emulator</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GBA Stable Emulator</title>
     <style>
-        body { background: #111; color: #eee; font-family: sans-serif; text-align: center; }
-        #emulator { width: 640px; height: 480px; max-width: 90vw; margin: 20px auto; border: 2px solid #444; }
-        .btn { background: #3a7bd5; color: white; padding: 12px 24px; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; }
-        #status { margin-top: 10px; color: #888; font-size: 0.9em; }
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        #game-box { width: 640px; height: 480px; border: 2px solid #333; position: relative; background: #111; }
+        .ui { margin-top: 20px; }
+        #status-log { color: #888; font-size: 12px; margin-top: 10px; }
+        button { background: #222; color: #0f0; border: 1px solid #0f0; padding: 10px 20px; cursor: pointer; }
+        button:hover { background: #0f0; color: #000; }
     </style>
 </head>
 <body>
 
-    <h2>GBA Single-File Player</h2>
-    
-    <div id="emulator">
-        <div style="padding-top: 150px;">
-            <input type="file" id="file" accept=".gba" style="display:none">
-            <button class="btn" onclick="document.getElementById('file').click()">📂 Load GBA ROM</button>
-            <p id="status">Waiting for file...</p>
+    <div id="game-box">
+        <div id="setup" style="text-align:center; padding-top: 180px;">
+            <button onclick="document.getElementById('rom-file').click()">SELECT .GBA ROM</button>
+            <input type="file" id="rom-file" accept=".gba" style="display:none">
         </div>
     </div>
 
+    <div class="ui">
+        <div id="status-log">Status: System Ready</div>
+    </div>
+
     <script>
-        document.getElementById('file').onchange = function(e) {
+        const log = (msg) => document.getElementById('status-log').innerText = "Status: " + msg;
+
+        document.getElementById('rom-file').onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('status').innerText = "Loading Engine...";
+            log("Initializing Core...");
 
-            // Configuration for EmulatorJS
-            window.EJS_player = "#emulator";
+            // Config
+            window.EJS_player = "#game-box";
             window.EJS_core = "gba"; 
-            window.EJS_gameUrl = URL.createObjectURL(file); // Better than DataURL
-            window.EJS_pathtodata = "https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@latest/data/";
+            window.EJS_gameUrl = URL.createObjectURL(file);
+            
+            // Using a more reliable data path
+            window.EJS_pathtodata = "https://raw.githack.com/EmulatorJS/EmulatorJS/main/data/";
+            window.EJS_startOnLoaded = true;
 
-            // Load the actual loader script
-            const script = document.createElement("script");
-            script.src = "https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@latest/data/loader.js";
-            script.onload = () => {
-                document.getElementById('status').innerText = "Engine Loaded!";
-            };
-            document.head.appendChild(script);
+            // Remove the UI so the emulator can take over the div
+            document.getElementById('setup').style.display = "none";
+
+            // Load Loader
+            const loader = document.createElement("script");
+            loader.src = "https://raw.githack.com/EmulatorJS/EmulatorJS/main/data/loader.js";
+            
+            loader.onload = () => log("Engine running. If black, check Browser Console (F12)");
+            loader.onerror = () => log("CDN Failed. Use a local server.");
+            
+            document.head.appendChild(loader);
         };
     </script>
 </body>
